@@ -17,22 +17,20 @@ export const metadata = {
   description: 'A description of your awesome website.',
 };
 
-// 👇 2. Configure the font
-const poppins = Poppins({
+import { Adamina } from "next/font/google";
+
+const adamina = Adamina({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"]
+  weight: ["400"], // Adamina only has one weight
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-});
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={adamina.className}>
       <body>
         <Suspense fallback={<div>Loading...</div>}>
-          <Navbar />
+          {/* <Navbar /> */}
           <main>
             <Providers>{children}</Providers>
           </main>
