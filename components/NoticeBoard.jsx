@@ -1,6 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
+import useSWR from "swr";
 import { motion } from "framer-motion";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function NoticeBoard() {
   const cardVariants = {
@@ -12,32 +16,27 @@ export default function NoticeBoard() {
     }),
   };
 
-  const notices = [
-    {
-      title: "Mid-Sem Exams Schedule Released",
-      desc: "The mid-semester exam timetable for all B.Tech batches is now available on the notice board section.",
-    },
-    {
-      title: "Workshop on AI & ML",
-      desc: "Join us for a hands-on workshop on Artificial Intelligence and Machine Learning on 12th Nov.",
-    },
-    {
-      title: "Hackathon 2025 Registrations Open",
-      desc: "Participate in our annual coding competition to win exciting prizes and internship offers.",
-    },
-  ];
+  const { data, error, isLoading } = useSWR("/api/notices", fetcher, {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+  });
+
+  const notices = useMemo(() => {
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return [...data]
+      .filter((notice) => notice?.title && notice?.content)
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 3);
+  }, [data]);
 
   return (
     <section
-      className="relative min-h-screen flex flex-col justify-center items-center px-6 py-20 text-white"
-      style={{
-        backgroundImage: "url('/background.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      className="relative min-h-screen flex flex-col justify-center items-center px-6 py-20 text-white bg-gradient-to-br from-slate-950 via-slate-900 to-black"
     >
-      {/* Blur Overlay */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.06),_transparent_55%)]" />
 
       {/* Title */}
       <motion.h2
@@ -52,32 +51,68 @@ export default function NoticeBoard() {
 
       {/* Notice Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full z-10">
-        {notices.map((notice, i) => (
-          <motion.div
-            key={i}
-            custom={i}
-            variants={cardVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="bg-white/20 backdrop-blur-lg border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition flex flex-col"
-          >
-            {/* Fixed title height for alignment */}
-            <div className="min-h-[64px] flex items-center">
-              <h3 className="text-xl font-semibold text-white drop-shadow text-center w-full">
-                {notice.title}
-              </h3>
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={`notice-skeleton-${index}`}
+              className="bg-slate-900/70 border border-white/10 rounded-2xl p-6 animate-pulse"
+            >
+              <div className="h-6 w-3/4 mx-auto rounded-full bg-slate-700/60" />
+              <div className="mt-6 h-1 w-16 mx-auto rounded-full bg-slate-700/40" />
+              <div className="mt-8 space-y-3">
+                <div className="h-3 w-full rounded-full bg-slate-700/40" />
+                <div className="h-3 w-5/6 rounded-full bg-slate-700/40" />
+                <div className="h-3 w-4/6 rounded-full bg-slate-700/40" />
+              </div>
             </div>
+          ))
+        ) : error ? (
+          <div className="md:col-span-3 text-center text-red-300">
+            Unable to load notices right now. Please try again later.
+          </div>
+        ) : notices.length === 0 ? (
+          <div className="md:col-span-3 text-center text-gray-400">
+            No notices published yet.
+          </div>
+        ) : (
+          notices.map((notice, i) => (
+            <motion.div
+              key={notice._id || `${notice.title}-${i}`}
+              custom={i}
+              variants={cardVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              whileHover={{ scale: 1.04 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-slate-900/70 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.7)] flex flex-col transition-transform duration-300 will-change-transform"
+            >
+              <div className="min-h-[64px] flex items-center">
+                <h3 className="text-xl font-semibold text-white drop-shadow-lg text-center w-full">
+                  {notice.title}
+                </h3>
+              </div>
 
-            {/* Divider (optional aesthetic touch) */}
-            <div className="w-16 h-[2px] bg-blue-400 mx-auto my-4 rounded-full opacity-80" />
+              <div className="w-16 h-[2px] bg-sky-400/80 mx-auto my-4 rounded-full" />
 
-            {/* Description */}
-            <p className="text-gray-200 leading-relaxed flex-grow text-center">
-              {notice.desc}
-            </p>
-          </motion.div>
-        ))}
+              <p className="text-slate-200/90 leading-relaxed flex-grow text-center">
+                {notice.content?.length > 180
+                  ? `${notice.content.slice(0, 177)}...`
+                  : notice.content || ""}
+              </p>
+
+              {notice.createdAt ? (
+                <p className="mt-8 text-xs uppercase tracking-[0.3em] text-slate-400 text-center">
+                  {new Date(notice.createdAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+              ) : null}
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Button */}

@@ -3,6 +3,7 @@
 import useSWR from "swr"
 import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,9 +18,6 @@ export function NoticeList({ limit, layout = 'grid' }) {
     revalidateOnFocus: true,
   })
 
-  if (isLoading) return <div>Loading notices...</div>
-  if (error) return <div className="text-destructive">Failed to load notices.</div>
-
   const notices = Array.isArray(data) ? data : []
   const sortedNotices = notices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const items = typeof limit === "number" ? sortedNotices.slice(0, limit) : sortedNotices
@@ -27,14 +25,29 @@ export function NoticeList({ limit, layout = 'grid' }) {
   // Correctly handles the 'grid' layout for the homepage
   if (layout === 'grid') {
     return (
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 px-16">
-        {items.length === 0 ? (
-          <div className="text-muted-foreground md:col-span-3">No notices yet.</div>
-        ) : (
-          items.map((n, i) => (
-            <GridItem key={n._id} n={n} i={i} session={session} mutate={mutate} />
-          ))
-        )}
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:px-4">
+        {isLoading
+          ? Array.from({ length: typeof limit === "number" ? limit : 3 }).map((_, index) => (
+              <div
+                key={`notice-skeleton-${index}`}
+                className="rounded-2xl border border-white/12 bg-black p-6 md:p-7 animate-pulse"
+              >
+                <div className="h-6 w-3/4 rounded-full bg-slate-700/50" />
+                <div className="mt-6 h-1 w-16 rounded-full bg-slate-700/40" />
+                <div className="mt-8 space-y-3">
+                  <div className="h-3 w-full rounded-full bg-slate-700/40" />
+                  <div className="h-3 w-5/6 rounded-full bg-slate-700/40" />
+                  <div className="h-3 w-2/3 rounded-full bg-slate-700/40" />
+                </div>
+              </div>
+            ))
+          : error
+          ? <div className="md:col-span-3 text-center text-red-300">Failed to load notices.</div>
+          : items.length === 0
+          ? <div className="md:col-span-3 text-center text-slate-400">No notices yet.</div>
+          : items.map((n, i) => (
+              <GridItem key={n._id || `${n.title}-${i}`} n={n} i={i} session={session} mutate={mutate} />
+            ))}
       </div>
     )
   }
@@ -81,30 +94,34 @@ export function NoticeList({ limit, layout = 'grid' }) {
 
 function GridItem({ n, i, session, mutate }) {
   return (
-    <div
-      className="flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 will-change-transform animate-in fade-in-0 slide-in-from-bottom-2"
-      style={{ animationDelay: `${i * 80}ms` }}
+    <motion.div
+      initial={{ opacity: 0, y: 32 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.45, ease: "easeOut", delay: i * 0.05 }}
+      whileHover={{ scale: 1.02, transition: { duration: 0.18, ease: "easeOut" } }}
+      className="flex flex-col rounded-2xl border border-white/12 bg-black p-7 shadow-[0_20px_45px_-40px_rgba(0,0,0,0.85)]"
     >
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-          <CalendarDays className="h-6 w-6 text-primary" />
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+          <CalendarDays className="h-6 w-6 text-white/80" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-primary">
+          <p className="text-sm font-semibold text-white/80">
             {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
           </p>
-          <p className="text-xs text-slate-500">{new Date(n.createdAt).getFullYear()}</p>
+          <p className="text-xs text-white/50">{new Date(n.createdAt).getFullYear()}</p>
         </div>
       </div>
-      <h3 className="mb-3 text-xl font-bold text-slate-900">{n.title}</h3>
-      <div className="flex-grow text-sm leading-relaxed text-slate-600">
+      <h3 className="mb-3 text-xl font-semibold text-white drop-shadow-lg">{n.title}</h3>
+      <div className="flex-grow text-sm leading-relaxed text-white/80">
         {session?.user?.role === "admin" ? (
           <EditableNotice n={n} onChanged={() => mutate()} />
         ) : (
           <p className="line-clamp-4">{n.content}</p>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
 

@@ -28,10 +28,10 @@ const adamina = Adamina({
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={adamina.className}>
-      <body>
+      <body className="bg-black text-white">
         <Suspense fallback={<div>Loading...</div>}>
-          {/* <Navbar /> */}
-          <main>
+          <Navbar />
+          <main className="bg-black">
             <Providers>{children}</Providers>
           </main>
           <Analytics />
